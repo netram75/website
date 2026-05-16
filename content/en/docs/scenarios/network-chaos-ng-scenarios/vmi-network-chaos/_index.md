@@ -1,24 +1,72 @@
 ---
 title: VMI Network Chaos
-description:
-date: 2017-01-04
+description: Injects network faults such as packet loss, latency, and bandwidth limits on a target KubeVirt Virtual Machine Instance
+weight: 4
 ---
-<krkn-hub-scenario id="vmi-network-chaos">
-Injects network degradation into a KubeVirt Virtual Machine Instance (VMI) by shaping traffic on the VM's tap interface inside the virt-launcher network namespace. Supports configurable bandwidth limiting, latency injection, and packet loss. Unlike node or pod network chaos, this scenario targets the tap device that connects QEMU to the bridge, so only the specific VMI is affected without disrupting OVN's BFD heartbeats or other workloads on the same node.
-</krkn-hub-scenario>
 
-## How to Run VMI Network Chaos Scenarios
+## Scenario Description
 
-Choose your preferred method to run VMI network chaos scenarios:
+The VMI Network Chaos scenario injects network faults directly on a target Virtual Machine Instance (VMI) using Linux traffic control (`tc netem`) inside the VMI. It supports packet loss, artificial latency, and bandwidth throttling. Use this scenario to validate how your virtualized workloads behave under degraded network conditions in OpenShift Virtualization.
 
-{{< tabpane text=true >}}
-  {{< tab header="**Krkn**" lang="krkn" >}}
-{{< readfile file="_tab-krkn.md" >}}
-  {{< /tab >}}
-  {{< tab header="**Krkn-hub**" lang="krkn-hub" >}}
-{{< readfile file="_tab-krkn-hub.md" >}}
-  {{< /tab >}}
-  {{< tab header="**Krknctl**" lang="krknctl" >}}
-{{< readfile file="_tab-krknctl.md" >}}
-  {{< /tab >}}
-{{< /tabpane >}}
+## Prerequisites
+
+- A running OpenShift cluster with OpenShift Virtualization (KubeVirt) enabled
+- krkn-chaos installed and configured
+- Target VMI must be running and accessible via `oc exec`
+
+## Scenario Configuration
+
+```yaml
+vmi_network_chaos_scenario:
+  namespace: "default"     # namespace of the target VMI
+  vmi_name: ""             # name of the target VMI
+  interface: "eth0"        # network interface inside the VMI
+  loss: 0                  # packet loss percentage (0-100)
+  latency: 0               # added latency in milliseconds
+  bandwidth: ""            # bandwidth limit e.g. "100mbit"
+  duration: 60             # chaos duration in seconds
+  wait_timeout: 300
+```
+
+### Example
+
+```yaml
+vmi_network_chaos_scenario:
+  namespace: "vm-workloads"
+  vmi_name: "database-vm"
+  interface: "eth0"
+  loss: 5
+  latency: 100
+  duration: 180
+  wait_timeout: 600
+```
+
+## Scenario Execution
+
+### krkn
+
+```bash
+python run_kraken.py --config config/vmi_network_chaos.yaml
+```
+
+### krkn-hub
+
+```bash
+krkn-hub run vmi-network-chaos \
+  --namespace vm-workloads \
+  --vmi-name database-vm \
+  --loss 5 \
+  --latency 100 \
+  --duration 180
+```
+
+### krknctl
+
+```bash
+krknctl run vmi-network-chaos \
+  --namespace vm-workloads \
+  --vmi-name database-vm \
+  --loss 5 \
+  --latency 100 \
+  --duration 180
+```
